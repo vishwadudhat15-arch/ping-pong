@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ping-pong-game.app/sitemap.xml

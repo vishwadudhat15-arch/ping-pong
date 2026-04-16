@@ -1,0 +1,21 @@
+{
+  "name": "Table Tennis Ping Pong",
+  "short_name": "Ping Pong",
+  "description": "Realistic arcade ping pong game with arc physics and AI challenge.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#8B5E3C",
+  "theme_color": "#8B5E3C",
+  "icons": [
+    {
+      "src": "/og-image.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/og-image.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

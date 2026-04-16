@@ -922,8 +922,8 @@ export default function PingPong() {
             }}>
               {phase === "idle" && (
                 <>
-                  <div style={{ fontSize: 10, color: "#a0724a", letterSpacing: 6 }}>TABLE TENNIS</div>
-                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#d4a96a", letterSpacing: 5 }}>PING PONG</div>
+                  <h1 style={{ fontSize: 10, color: "#a0724a", letterSpacing: 6, margin: 0 }}>TABLE TENNIS</h1>
+                  <h2 style={{ fontSize: 20, fontWeight: "bold", color: "#d4a96a", letterSpacing: 5, margin: "4px 0" }}>PING PONG</h2>
                   <div style={{ display: "flex", gap: 15, marginTop: 12 }}>
                     <button
                       onClick={() => { setGameMode("1p"); startGame(0, 0, "player"); }}
