@@ -926,7 +926,7 @@ export default function PingPong() {
                         fontFamily: "Georgia, serif", letterSpacing: 2,
                         boxShadow: "0 4px 0 #5d3a1a",
                       }}
-                    > 
+                    >
                       2 PLAYERS
                     </button>
                   </div>
