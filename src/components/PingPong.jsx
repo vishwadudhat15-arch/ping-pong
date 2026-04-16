@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+// Pre-import React.memo if needed, or just use React.memo since React is in scope
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CW = 520, CH = 720;
@@ -124,12 +125,13 @@ function drawBall(ctx, bx, by, bz, trail) {
   const vy = by - bz;
 
   // Trail (in air, more visible)
-  for (let i = 0; i < trail.length; i++) {
-    const f = i / trail.length;
+  const len = trail.length / 2;
+  for (let i = 0; i < len; i++) {
+    const f = i / len;
     const tr = BALL_R * f * 0.6;
     if (tr < 0.5) continue;
     ctx.beginPath();
-    ctx.arc(trail[i].vx, trail[i].vy, tr, 0, Math.PI * 2);
+    ctx.arc(trail[i * 2], trail[i * 2 + 1], tr, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255,255,255,${f * 0.22})`;
     ctx.fill();
   }
@@ -163,7 +165,8 @@ function drawBall(ctx, bx, by, bz, trail) {
 
 // Bounce ring effect
 function drawBounceRings(ctx, rings) {
-  rings.forEach(r => {
+  for (let i = 0; i < rings.length; i++) {
+    const r = rings[i];
     const alpha = r.life / r.maxLife * 0.7;
     const radius = (1 - r.life / r.maxLife) * 18 + 2;
     ctx.beginPath();
@@ -171,58 +174,63 @@ function drawBounceRings(ctx, rings) {
     ctx.strokeStyle = `rgba(255,230,100,${alpha})`;
     ctx.lineWidth = 2;
     ctx.stroke();
-  });
+  }
 }
 
-function drawPaddle(ctx, x, y, isPlayer) {
-  const color = isPlayer ? "#d32f2f" : "#1565c0";
-  const handleY = isPlayer ? 5 : -22;
-  const padY = isPlayer ? -hR * 0.65 : hR * 0.65;
+function drawPaddle(ctx, x, y, isPlayer, cacheRef) {
+  if (!cacheRef.current) {
+    const pc = document.createElement("canvas");
+    pc.width = PAD_W + 10;
+    pc.height = PAD_W + 30;
+    const pctx = pc.getContext("2d");
+    const color = isPlayer ? "#d32f2f" : "#1565c0";
+    const cx = (PAD_W + 10) / 2;
+    const cy = isPlayer ? (PAD_W + 30) - 25 : 25;
+    const handleY = isPlayer ? 5 : -22;
+    const padY = isPlayer ? -hR * 0.65 : hR * 0.65;
 
-  ctx.save();
-  ctx.translate(x, y);
-
-  // Handle
-  ctx.fillStyle = "#6d4c41";
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(-3.5, handleY, 7, 20, 2);
-  else ctx.rect(-3.5, handleY, 7, 20);
-  ctx.fill();
-
-  // Paddle face
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Grip lines
-  ctx.strokeStyle = "rgba(0,0,0,0.18)";
-  ctx.lineWidth = 1;
-  for (let i = -2; i <= 2; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * 10 - 6, padY - hR * 0.55);
-    ctx.lineTo(i * 10 + 6, padY + hR * 0.55);
-    ctx.stroke();
+    pctx.save();
+    pctx.translate(cx, cy);
+    // Handle
+    pctx.fillStyle = "#6d4c41";
+    pctx.beginPath();
+    if (pctx.roundRect) pctx.roundRect(-3.5, handleY, 7, 20, 2);
+    else pctx.rect(-3.5, handleY, 7, 20);
+    pctx.fill();
+    // Paddle face
+    pctx.fillStyle = color;
+    pctx.beginPath();
+    pctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
+    pctx.fill();
+    // Grip lines
+    pctx.strokeStyle = "rgba(0,0,0,0.18)";
+    pctx.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) {
+      pctx.beginPath();
+      pctx.moveTo(i * 10 - 6, padY - hR * 0.55);
+      pctx.lineTo(i * 10 + 6, padY + hR * 0.55);
+      pctx.stroke();
+    }
+    // Rim
+    pctx.strokeStyle = "rgba(255,255,255,0.22)";
+    pctx.lineWidth = 1.5;
+    pctx.beginPath();
+    pctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
+    pctx.stroke();
+    // Shine
+    pctx.fillStyle = "rgba(255,255,255,0.18)";
+    pctx.beginPath();
+    pctx.ellipse(-hR * 0.25, padY - hR * 0.22, hR * 0.3, hR * 0.16, -0.3, 0, Math.PI * 2);
+    pctx.fill();
+    pctx.restore();
+    cacheRef.current = pc;
   }
-
-  // Rim
-  ctx.strokeStyle = "rgba(255,255,255,0.22)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Shine
-  ctx.fillStyle = "rgba(255,255,255,0.18)";
-  ctx.beginPath();
-  ctx.ellipse(-hR * 0.25, padY - hR * 0.22, hR * 0.3, hR * 0.16, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.restore();
+  const cyOffset = isPlayer ? 25 : -25;
+  ctx.drawImage(cacheRef.current, x - (PAD_W + 10) / 2, y - (cacheRef.current.height / 2) + cyOffset);
 }
 
 // ─── Pips row ─────────────────────────────────────────────────────────────────
-function Pips({ filled, color }) {
+const Pips = React.memo(({ filled, color }) => {
   return (
     <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 4, flexWrap: "wrap", maxWidth: 120 }}>
       {Array.from({ length: WIN_SCORE }).map((_, i) => (
@@ -235,7 +243,7 @@ function Pips({ filled, color }) {
       ))}
     </div>
   );
-}
+});
 
 // ─── Celebratory Fireworks ────────────────────────────────────────────────────
 function Fireworks() {
@@ -290,6 +298,7 @@ function Fireworks() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function PingPong() {
   const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
   const stRef = useRef(null);
   const rafRef = useRef(null);
   const runRef = useRef(false);
@@ -297,6 +306,8 @@ export default function PingPong() {
   const keysRef = useRef({});
   const audioCtx = useRef(null);
   const tableCanvasRef = useRef(null); // Offscreen canvas for table
+  const p1CanvasRef = useRef(null);
+  const p2CanvasRef = useRef(null);
 
   const [gameMode, setGameMode] = useState("1p");
   const gameModeRef = useRef("1p");
@@ -354,7 +365,10 @@ export default function PingPong() {
   // ── Draw ───────────────────────────────────────────────────────────────────
   const draw = useCallback((s) => {
     const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext("2d");
+    if (!ctxRef.current) {
+      ctxRef.current = c.getContext("2d", { alpha: false, desynchronized: true });
+    }
+    const ctx = ctxRef.current;
 
     // Initialize offscreen table if not already done
     if (!tableCanvasRef.current) {
@@ -367,8 +381,8 @@ export default function PingPong() {
 
     drawBounceRings(ctx, s.bounceRings);
     drawBall(ctx, s.bx, s.by, s.bz, s.trail);
-    drawPaddle(ctx, s.px, s.py, true);
-    drawPaddle(ctx, s.cx, s.cy, false);
+    drawPaddle(ctx, s.px, s.py, true, p1CanvasRef);
+    drawPaddle(ctx, s.cx, s.cy, false, p2CanvasRef);
 
     // Serve countdown label
     if (s.serving) {
@@ -490,14 +504,14 @@ export default function PingPong() {
       // Determine pointers
       let p1Pointer = null;
       let p2Pointer = null;
-      for (const key in pointersRef.current) {
-        const pt = pointersRef.current[key];
+      const ids = Object.keys(pointersRef.current);
+      for (let i = 0; i < ids.length; i++) {
+        const pt = pointersRef.current[ids[i]];
         if (pt.y > NET_Y) p1Pointer = pt;
         else p2Pointer = pt;
       }
-      if (gameModeRef.current === "1p") {
-        const pts = Object.values(pointersRef.current);
-        if (pts.length > 0) p1Pointer = pts[0];
+      if (gameModeRef.current === "1p" && ids.length > 0) {
+        p1Pointer = pointersRef.current[ids[0]];
       }
 
       // ── Serve countdown ──────────────────────────────────────────────────
@@ -591,11 +605,17 @@ export default function PingPong() {
 
       // ── Trail ─────────────────────────────────────────────────────────────
       // Visual y = by - bz (ball appears above shadow)
-      s.trail.push({ vx: s.bx, vy: s.by - s.bz });
-      if (s.trail.length > 14) s.trail.shift();
+      s.trail.push(s.bx, s.by - s.bz);
+      if (s.trail.length > 28) {
+        s.trail.shift();
+        s.trail.shift();
+      }
 
       // Age bounce rings
-      s.bounceRings = s.bounceRings.map(r => ({ ...r, life: r.life - 1 })).filter(r => r.life > 0);
+      for (let i = s.bounceRings.length - 1; i >= 0; i--) {
+        s.bounceRings[i].life--;
+        if (s.bounceRings[i].life <= 0) s.bounceRings.splice(i, 1);
+      }
 
       // ── Ball physics (3D-like arc) ────────────────────────────────────────
       // bvz = vertical velocity (height axis), gravity pulls it down
