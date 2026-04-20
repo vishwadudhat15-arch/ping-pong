@@ -54,22 +54,17 @@ function createPingSound(ctx, freq = 880, type = "ping") {
 
 // ─── Drawing helpers ──────────────────────────────────────────────────────────
 function drawTable(ctx) {
-  // Wood floor outer background
-  ctx.fillStyle = "#c1966a";
-  ctx.fillRect(0, 0, CW, CH);
-  for (let y = 0; y < CH; y += 12) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-    ctx.fillRect(0, y, CW, 2);
-  }
+  // Clear the canvas to be transparent to show the CSS room floor
+  ctx.clearRect(0, 0, CW, CH);
 
   // Draw table edge shadow / lip under the table
   ctx.fillStyle = "#1a1a1a";
   ctx.fillRect(TABLE_L - 3, TABLE_TOP - 3, (TABLE_R - TABLE_L) + 6, (TABLE_BOTTOM - TABLE_TOP) + 12);
 
-  // Table surface (Vibrant Green)
+  // Table surface (Vibrant Emerald Green)
   const grad = ctx.createLinearGradient(0, TABLE_TOP, 0, TABLE_BOTTOM);
-  grad.addColorStop(0, "#198A44");
-  grad.addColorStop(1, "#27AE60");
+  grad.addColorStop(0, "#2ecc71"); 
+  grad.addColorStop(1, "#27ae60");
   ctx.fillStyle = grad;
   ctx.fillRect(TABLE_L, TABLE_TOP, TABLE_R - TABLE_L, TABLE_BOTTOM - TABLE_TOP);
 
@@ -94,7 +89,7 @@ function drawTable(ctx) {
   // Net body (dark grid pattern)
   ctx.fillStyle = "rgba(0,0,0,0.5)";
   ctx.fillRect(TABLE_L, NET_Y - NET_H, TABLE_R - TABLE_L, NET_H * 2);
-  
+
   // Net grid crossings
   ctx.fillStyle = "rgba(255,255,255,0.2)";
   for (let x = TABLE_L + 2; x < TABLE_R; x += 8) {
@@ -380,7 +375,7 @@ export default function PingPong() {
   const draw = useCallback((s) => {
     const c = canvasRef.current; if (!c) return;
     if (!ctxRef.current) {
-      ctxRef.current = c.getContext("2d", { alpha: false, desynchronized: true });
+      ctxRef.current = c.getContext("2d", { alpha: true, desynchronized: true });
     }
     const ctx = ctxRef.current;
 
@@ -451,8 +446,8 @@ export default function PingPong() {
         s.bx = s.px; s.by = s.py;
         s.bvx = (s.px - CW / 2) * 0.04 + (Math.random() - 0.5) * 1.5;
         s.bvy = -4.5;
-        s.bvz = 5.5; 
-        s.bz = 18;  
+        s.bvz = 5.5;
+        s.bz = 18;
       } else {
         s.bx = s.cx; s.by = s.cy;
         s.bvx = (s.cx - CW / 2) * 0.04 + (Math.random() - 0.5) * 1.5;
@@ -529,13 +524,13 @@ export default function PingPong() {
 
         if (p1Pointer) {
           const serveLimitY = TABLE_BOTTOM - 60;
-          s.px += (clamp(p1Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.px) * 0.35;
-          s.py += (clamp(p1Pointer.y, serveLimitY, TABLE_BOTTOM - 20) - s.py) * 0.35;
+          s.px += (clamp(p1Pointer.x, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.px) * 0.35;
+          s.py += (clamp(p1Pointer.y, serveLimitY, TABLE_BOTTOM - PAD_H - 2) - s.py) * 0.35;
         }
         if (gameModeRef.current === "2p" && p2Pointer) {
           const serveLimitY = TABLE_TOP + 60;
-          s.cx += (clamp(p2Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.cx) * 0.35;
-          s.cy += (clamp(p2Pointer.y, TABLE_TOP + 20, serveLimitY) - s.cy) * 0.35;
+          s.cx += (clamp(p2Pointer.x, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.cx) * 0.35;
+          s.cy += (clamp(p2Pointer.y, TABLE_TOP + PAD_H + 2, serveLimitY) - s.cy) * 0.35;
         }
 
         draw(s);
@@ -563,11 +558,11 @@ export default function PingPong() {
       }
 
       if (!usingKeysP1 && p1Pointer) {
-        s.px += (clamp(p1Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.px) * 0.65;
-        s.py += (clamp(p1Pointer.y, NET_Y + PAD_H + 6, TABLE_BOTTOM - 8 - PAD_H) - s.py) * 0.65;
+        s.px += (clamp(p1Pointer.x, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.px) * 0.65;
+        s.py += (clamp(p1Pointer.y, NET_Y + PAD_H + 2, TABLE_BOTTOM - PAD_H - 2) - s.py) * 0.65;
       }
-      s.px = clamp(s.px, TABLE_L + 8 + hR, TABLE_R - 8 - hR);
-      s.py = clamp(s.py, NET_Y + PAD_H + 6, TABLE_BOTTOM - 8 - PAD_H);
+      s.px = clamp(s.px, TABLE_L + hR + 2, TABLE_R - hR - 2);
+      s.py = clamp(s.py, NET_Y + PAD_H + 2, TABLE_BOTTOM - PAD_H - 2);
       s.pvx = s.px - ppx; s.pvy = s.py - ppy;
 
       // ── AI or Player 2 movement ──────────────────────────────────────────────
@@ -581,11 +576,11 @@ export default function PingPong() {
         if (k.ArrowUp) s.cy -= ks;
         if (k.ArrowDown) s.cy += ks;
         if (!usingKeysP2 && p2Pointer) {
-          s.cx += (clamp(p2Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.cx) * 0.65;
-          s.cy += (clamp(p2Pointer.y, TABLE_TOP + 8 + PAD_H, NET_Y - PAD_H - 6) - s.cy) * 0.65;
+          s.cx += (clamp(p2Pointer.x, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.cx) * 0.65;
+          s.cy += (clamp(p2Pointer.y, TABLE_TOP + PAD_H + 2, NET_Y - PAD_H - 2) - s.cy) * 0.65;
         }
-        s.cx = clamp(s.cx, TABLE_L + 8 + hR, TABLE_R - 8 - hR);
-        s.cy = clamp(s.cy, TABLE_TOP + 8 + PAD_H, NET_Y - PAD_H - 6);
+        s.cx = clamp(s.cx, TABLE_L + hR + 2, TABLE_R - hR - 2);
+        s.cy = clamp(s.cy, TABLE_TOP + PAD_H + 2, NET_Y - PAD_H - 2);
       } else {
         s.aiTimer--;
         if (s.aiTimer <= 0) {
@@ -594,15 +589,15 @@ export default function PingPong() {
           s.aiTimer = 12 + Math.random() * 15;
         }
         const tr = 0.05 + Math.min(s.speed, 14) * 0.005;
-        const aiTgtX = clamp(s.bx + s.aiErrX, TABLE_L + 8 + hR, TABLE_R - 8 - hR);
+        const aiTgtX = clamp(s.bx + s.aiErrX, TABLE_L + hR + 2, TABLE_R - hR - 2);
         const visualY = s.by - s.bz;
         const aiTgtY = s.bvy < 0
-          ? clamp(visualY * 0.5 + (TABLE_TOP + 40) * 0.5, TABLE_TOP + 8 + PAD_H, NET_Y - PAD_H - 10)
+          ? clamp(visualY * 0.5 + (TABLE_TOP + 40) * 0.5, TABLE_TOP + PAD_H + 2, NET_Y - PAD_H - 2)
           : TABLE_TOP + 48;
         s.cx += (aiTgtX - s.cx) * tr * 5;
         s.cy += (aiTgtY - s.cy) * tr * 3;
-        s.cx = clamp(s.cx, TABLE_L + 8 + hR, TABLE_R - 8 - hR);
-        s.cy = clamp(s.cy, TABLE_TOP + 8 + PAD_H, NET_Y - PAD_H - 6);
+        s.cx = clamp(s.cx, TABLE_L + hR + 2, TABLE_R - hR - 2);
+        s.cy = clamp(s.cy, TABLE_TOP + PAD_H + 2, NET_Y - PAD_H - 2);
       }
       s.cvx = s.cx - prevCX;
       s.cvy = s.cy - prevCY;
@@ -626,7 +621,7 @@ export default function PingPong() {
       s.bx += s.bvx;
       s.by += s.bvy;
 
-      // Side walls
+      // Side walls (strictly bound ball inside table horizontally)
       if (s.bx < TABLE_L + BALL_R) { s.bx = TABLE_L + BALL_R; s.bvx = Math.abs(s.bvx) * 0.92; }
       if (s.bx > TABLE_R - BALL_R) { s.bx = TABLE_R - BALL_R; s.bvx = -Math.abs(s.bvx) * 0.92; }
 
@@ -680,6 +675,7 @@ export default function PingPong() {
           }
 
         } else {
+          // Ball hit outside physical bounds logic (fallback if somehow escapes)
           if (s.servePhase === "live" || s.serveBounced) {
             const onP = s.by > NET_Y;
             awardPoint(onP ? "player" : "cpu", "Out of bounds!");
@@ -725,18 +721,25 @@ export default function PingPong() {
       const pdy = visualBy - s.py;
       const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
       const pHittable = s.pBounced || (s.bz < PADDLE_HIT_Z * 0.6 && s.by > NET_Y);
+
+      // Removed wide tolerance, strict padding
       if (pDist < hR * 1.25 && s.bz < PADDLE_HIT_Z && s.bvy > 0 && s.by < TABLE_BOTTOM && pHittable) {
         const spd = s.speed;
         const nx = pdx / (pDist || 1);
         const ny = pdy / (pDist || 1);
 
-        s.bvx = nx * spd * 0.85 + s.pvx * 0.55;
-        s.bvy = -(spd * 1.15 + Math.random() * 0.5);
-        s.bvz = spd * 1.3 + Math.abs(s.pvy) * 0.25;
+        // Reduced momentum transfer for slower, more controlled hits
+        s.bvx = nx * spd * 0.95 + s.pvx * 0.6;
+
+        // If swinging forward (negative pvy), add speed. Base speed guarantees it crosses net.
+        let forwardThrow = Math.min(0, s.pvy * 0.6);
+        s.bvy = -(spd * 0.95 + Math.random() * 0.3) + forwardThrow;
+        s.bvz = spd * 1.1 + Math.abs(s.pvy) * 0.25 + Math.abs(s.pvx) * 0.1;
+
         s.bz = PADDLE_HIT_Z + 2;
         s.pBounced = false;
 
-        s.speed = Math.min(16, s.speed + 0.28);
+        s.speed = Math.min(16, s.speed + 0.18);
         s.rallyHits++;
         setRally(s.rallyHits);
         setSpeedPct(Math.round((s.speed / 16) * 100));
@@ -755,13 +758,18 @@ export default function PingPong() {
         const spd = s.speed;
         const nx = cdx / (cDist || 1);
 
-        s.bvx = nx * spd * 0.85 + s.cvx * 0.5;
-        s.bvy = spd * 1.25 + Math.random() * 0.5;
-        s.bvz = spd * 1.4;
+        // CPU also uses wide-throw mechanics to occasionally hit out
+        s.bvx = nx * spd * 0.95 + s.cvx * 0.6;
+
+        // Positive cvy = swinging downward on screen (forward for CPU)
+        let cForwardThrow = Math.max(0, s.cvy * 0.6);
+        s.bvy = (spd * 0.95 + Math.random() * 0.3) + cForwardThrow;
+        s.bvz = spd * 1.2 + Math.abs(s.cvy) * 0.25 + Math.abs(s.cvx) * 0.1;
+
         s.bz = PADDLE_HIT_Z + 2;
         s.cBounced = false;
 
-        s.speed = Math.min(16, s.speed + 0.28);
+        s.speed = Math.min(16, s.speed + 0.18);
         s.rallyHits++;
         setRally(s.rallyHits);
         setSpeedPct(Math.round((s.speed / 16) * 100));
@@ -774,10 +782,10 @@ export default function PingPong() {
 
       // ── Ball completely exits the canvas vertically ───────────────────────
       if (s.by > TABLE_BOTTOM + 15) {
-        awardPoint(s.pBounced ? "cpu" : "player", s.pBounced ? "Missed the table!" : "CPU hit long!"); return;
+        awardPoint("cpu", "Ball out past player!"); return;
       }
       if (s.by < TABLE_TOP - 15) {
-        awardPoint(s.cBounced ? "player" : "cpu", s.cBounced ? "CPU missed table!" : "Hit out long!"); return;
+        awardPoint("player", "Ball out past CPU!"); return;
       }
 
       draw(s);
@@ -799,21 +807,27 @@ export default function PingPong() {
   return (
     <div style={{
       width: "100vw", height: "100vh", overflow: "hidden",
-      background: "#111",
+      position: "relative",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       fontFamily: "Georgia, serif", color: "#3e2723",
+      background: `
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%),
+        repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)
+      `,
+      boxShadow: "inset 0 0 100px rgba(0,0,0,0.9)",
     }}>
       <style>{`
         .responsive-wrapper {
           display: flex; flex-direction: column;
-          width: min(95vw, 400px);
+           width: clamp(400px, 70vw, 1100px); 
           height: auto;
-          max-height: 98vh;
+          max-height: 96vh;
           position: relative;
           background: #3e2723;
           border-radius: 12px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+          box-shadow: 0 40px 80px rgba(0,0,0,0.8), 0 10px 25px rgba(0,0,0,0.6);
+          transform: translateY(2%);
         }
         @media (max-width: 820px) {
           .responsive-wrapper {
@@ -831,6 +845,18 @@ export default function PingPong() {
              border-width: 2px !important;
           }
         }
+        @media (min-width: 2500px) {
+          .responsive-wrapper {
+            width: clamp(1200px, 80vw, 2000px) !important;
+          }
+          .score-bar div div:nth-child(2) {
+             font-size: 60px !important;
+          }
+          .canvas-container {
+             height: 90vh !important;
+             max-height: 1800px !important;
+          }
+        }
       `}</style>
       {/* ── Game wrapper ── */}
       <div className="responsive-wrapper">
@@ -844,29 +870,29 @@ export default function PingPong() {
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P1 (YOU)" : "YOU"}</div>
+            <div style={{ fontSize: 9, color: "#fff", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P1 (YOU)" : "YOU"}</div>
             <div style={{ fontSize: 30, fontWeight: "bold", color: "#ff6b6b", lineHeight: 1, fontFamily: "monospace", textShadow: "0 0 8px rgba(255,107,107,0.4)" }}>{scoreP}</div>
             <Pips filled={scoreP} color="#ff6b6b" />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9, color: "rgba(255,255,255,0.85)", fontWeight: "bold" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9, color: "#fff", fontWeight: "bold" }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: serveBy === "player" ? "#ff6b6b" : "#4ecdc4", boxShadow: `0 0 6px ${serveBy === "player" ? "#ff6b6b" : "#4ecdc4"}` }} />
               <span>{serveBy === "player" ? (gameMode === "2p" ? "P1 SERVE" : "YOUR SERVE") : (gameMode === "2p" ? "P2 SERVE" : "CPU SERVE")}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-              <div style={{ fontSize: 7, color: "rgba(255,255,255,0.45)", fontWeight: "bold", letterSpacing: 1 }}>SPEED</div>
+              <div style={{ fontSize: 7, color: "rgba(255,255,255,0.8)", fontWeight: "bold", letterSpacing: 1 }}>SPEED</div>
               <div style={{ width: 66, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${speedPct}%`, background: "linear-gradient(90deg, #4ecdc4, #ffeb3b, #ff6b6b)", transition: "width 0.3s" }} />
               </div>
             </div>
-            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
-              RALLY <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: "bold" }}>{rally}</span>
+            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.8)" }}>
+              RALLY <span style={{ color: "#fff", fontWeight: "bold" }}>{rally}</span>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P2" : "CPU"}</div>
+            <div style={{ fontSize: 9, color: "#fff", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P2" : "CPU"}</div>
             <div style={{ fontSize: 30, fontWeight: "bold", color: "#4ecdc4", lineHeight: 1, fontFamily: "monospace", textShadow: "0 0 8px rgba(78,205,196,0.4)" }}>{scoreC}</div>
             <Pips filled={scoreC} color="#4ecdc4" />
           </div>
@@ -877,8 +903,9 @@ export default function PingPong() {
           position: "relative",
           overflow: "hidden",
           lineHeight: 0,
-          flex: 1, minHeight: 0,
-          background: "transparent",
+          width: "100%",
+          height: "80vh",        // 🔥 increase table size
+          maxHeight: "900px",    // optional limit
         }}>
           <canvas
             ref={canvasRef}
@@ -1038,7 +1065,7 @@ export default function PingPong() {
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 20, padding: "5px 0 2px", fontSize: 9, color: "#5d3a1a", letterSpacing: 1, flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 20, padding: "5px 0 2px", fontSize: 9, color: "#fff", letterSpacing: 1, flexShrink: 0, fontWeight: "bold", opacity: 0.9 }}>
           <span>{gameMode === "2p" ? "P1: WASD / TOUCH | P2: ARROWS / TOUCH" : "MOUSE / WASD"}</span>
           <span>FIRST TO 11 POINTS WINS</span>
           <span>REAL ARC PHYSICS</span>
