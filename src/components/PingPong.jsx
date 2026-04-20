@@ -1,4 +1,3 @@
-// Pre-import React.memo if needed, or just use React.memo since React is in scope
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -9,8 +8,9 @@ const hR = PAD_W / 2;
 const WIN_SCORE = 11;
 const NET_Y = CH / 2;
 const NET_H = 6.5;
+
 const TABLE_TOP = WALL + 6;           // top edge of table surface (CPU side)
-const TABLE_BOTTOM = CH - WALL - 6;      // bottom edge (player side)
+const TABLE_BOTTOM = CH - WALL - 6;   // bottom edge (player side)
 const TABLE_L = WALL + 6;
 const TABLE_R = CW - WALL - 6;
 
@@ -54,58 +54,59 @@ function createPingSound(ctx, freq = 880, type = "ping") {
 
 // ─── Drawing helpers ──────────────────────────────────────────────────────────
 function drawTable(ctx) {
-  // Wood outer frame
-  ctx.fillStyle = "#8B5E3C";
+  // Wood floor outer background
+  ctx.fillStyle = "#c1966a";
   ctx.fillRect(0, 0, CW, CH);
-  for (let y = 0; y < CH; y += 28) {
-    ctx.fillStyle = "rgba(255,220,160,0.055)";
-    ctx.fillRect(0, y, CW, 14);
+  for (let y = 0; y < CH; y += 12) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+    ctx.fillRect(0, y, CW, 2);
   }
 
-  // Table surface
-  ctx.fillStyle = "#c8915a";
+  // Draw table edge shadow / lip under the table
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(TABLE_L - 3, TABLE_TOP - 3, (TABLE_R - TABLE_L) + 6, (TABLE_BOTTOM - TABLE_TOP) + 12);
+
+  // Table surface (Vibrant Green)
+  const grad = ctx.createLinearGradient(0, TABLE_TOP, 0, TABLE_BOTTOM);
+  grad.addColorStop(0, "#198A44");
+  grad.addColorStop(1, "#27AE60");
+  ctx.fillStyle = grad;
   ctx.fillRect(TABLE_L, TABLE_TOP, TABLE_R - TABLE_L, TABLE_BOTTOM - TABLE_TOP);
-  for (let y = TABLE_TOP; y < TABLE_BOTTOM; y += 24) {
-    ctx.fillStyle = "rgba(255,230,170,0.055)";
-    ctx.fillRect(TABLE_L, y, TABLE_R - TABLE_L, 12);
-  }
 
-  // Inner white border line
-  ctx.strokeStyle = "rgba(255,255,255,0.45)";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(TABLE_L + 3, TABLE_TOP + 3, (TABLE_R - TABLE_L) - 6, (TABLE_BOTTOM - TABLE_TOP) - 6);
+  // Table Outer White Edge Lines
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(TABLE_L + 2, TABLE_TOP + 2, (TABLE_R - TABLE_L) - 4, (TABLE_BOTTOM - TABLE_TOP) - 4);
 
-  // Outer wood frame stroke
-  ctx.strokeStyle = "#5d3a1a";
-  ctx.lineWidth = WALL;
-  ctx.strokeRect(WALL / 2, WALL / 2, CW - WALL, CH - WALL);
-
-  // Center vertical dashed line
-  ctx.setLineDash([5, 9]);
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
+  // Center vertical solid line
+  ctx.strokeStyle = "#FFFFFF";
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(CW / 2, TABLE_TOP + 4);
-  ctx.lineTo(CW / 2, TABLE_BOTTOM - 4);
+  ctx.moveTo(CW / 2, TABLE_TOP + 2);
+  ctx.lineTo(CW / 2, TABLE_BOTTOM - 2);
   ctx.stroke();
-  ctx.setLineDash([]);
 
   // Net posts
-  ctx.fillStyle = "#8d6e63";
-  ctx.fillRect(TABLE_L - 4, NET_Y - NET_H - 6, 6, NET_H * 2 + 12);
-  ctx.fillRect(TABLE_R - 2, NET_Y - NET_H - 6, 6, NET_H * 2 + 12);
+  ctx.fillStyle = "#222";
+  ctx.fillRect(TABLE_L - 6, NET_Y - NET_H - 12, 6, NET_H * 2 + 24);
+  ctx.fillRect(TABLE_R, NET_Y - NET_H - 12, 6, NET_H * 2 + 24);
 
-  // Net body
-  ctx.fillStyle = "rgba(255,255,255,0.82)";
-  ctx.fillRect(TABLE_L, NET_Y - NET_H / 2, TABLE_R - TABLE_L, NET_H);
-  for (let x = TABLE_L + 2; x < TABLE_R; x += 10) {
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.fillRect(x, NET_Y - NET_H / 2, 5, NET_H);
+  // Net body (dark grid pattern)
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(TABLE_L, NET_Y - NET_H, TABLE_R - TABLE_L, NET_H * 2);
+  
+  // Net grid crossings
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  for (let x = TABLE_L + 2; x < TABLE_R; x += 8) {
+    ctx.fillRect(x, NET_Y - NET_H, 2, NET_H * 2);
+  }
+  for (let y = NET_Y - NET_H; y < NET_Y + NET_H; y += 4) {
+    ctx.fillRect(TABLE_L, y, TABLE_R - TABLE_L, 1);
   }
 
-  // Net top highlight
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillRect(TABLE_L, NET_Y - NET_H / 2 - 1, TABLE_R - TABLE_L, 2);
+  // Net top white tape
+  ctx.fillStyle = "#F8F8F8";
+  ctx.fillRect(TABLE_L, NET_Y - NET_H - 2, TABLE_R - TABLE_L, 4);
 }
 
 // Draw the ball shadow on the table (gives depth cue)
@@ -121,7 +122,7 @@ function drawShadow(ctx, bx, by, bz) {
 
 // Draw ball — rises visually when bz > 0 (shadow stays at by, ball renders above it)
 function drawBall(ctx, bx, by, bz, trail) {
-  // Visual y position: ball appears ABOVE its table position when in the air
+  // Visual y position: scaled appropriately for perspective height
   const vy = by - bz;
 
   // Trail (in air, more visible)
@@ -141,9 +142,7 @@ function drawBall(ctx, bx, by, bz, trail) {
   // Ball body
   ctx.beginPath();
   ctx.arc(bx, vy, BALL_R, 0, Math.PI * 2);
-  // Classic Off-white but with high-visibility glow
-  ctx.fillStyle = "#f8f4ee";
-  // Removed expensive shadowBlur for better mobile performance
+  ctx.fillStyle = "#FFD700";
   ctx.fill();
   ctx.strokeStyle = "rgba(0,0,0,0.35)";
   ctx.lineWidth = 1;
@@ -152,13 +151,13 @@ function drawBall(ctx, bx, by, bz, trail) {
   // Specular highlight
   ctx.beginPath();
   ctx.arc(bx - BALL_R * 0.28, vy - BALL_R * 0.3, BALL_R * 0.33, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
   ctx.fill();
 
   // Seam line for spin feel
   ctx.beginPath();
   ctx.arc(bx, vy, BALL_R - 1, 0.4, 2.7);
-  ctx.strokeStyle = "rgba(200,188,174,0.38)";
+  ctx.strokeStyle = "rgba(200,160,0,0.4)";
   ctx.lineWidth = 0.7;
   ctx.stroke();
 }
@@ -180,53 +179,69 @@ function drawBounceRings(ctx, rings) {
 function drawPaddle(ctx, x, y, isPlayer, cacheRef) {
   if (!cacheRef.current) {
     const pc = document.createElement("canvas");
-    pc.width = PAD_W + 10;
-    pc.height = PAD_W + 30;
+    pc.width = 160;
+    pc.height = 160;
     const pctx = pc.getContext("2d");
     const color = isPlayer ? "#d32f2f" : "#1565c0";
-    const cx = (PAD_W + 10) / 2;
-    const cy = isPlayer ? (PAD_W + 30) - 25 : 25;
-    const handleY = isPlayer ? 5 : -22;
-    const padY = isPlayer ? -hR * 0.65 : hR * 0.65;
+    const cx = pc.width / 2;
+    const cy = pc.height / 2;
 
     pctx.save();
     pctx.translate(cx, cy);
+    // Add professional tilt
+    const angle = isPlayer ? -Math.PI / 7 : Math.PI / 7;
+    pctx.rotate(angle);
+
     // Handle
-    pctx.fillStyle = "#6d4c41";
+    const handleLen = 38;
+    const hY = isPlayer ? 10 : -10 - handleLen;
+    pctx.fillStyle = "#5d4037"; // darker wood handle
     pctx.beginPath();
-    if (pctx.roundRect) pctx.roundRect(-3.5, handleY, 7, 20, 2);
-    else pctx.rect(-3.5, handleY, 7, 20);
+    if (pctx.roundRect) pctx.roundRect(-4.5, hY, 9, handleLen, 3);
+    else pctx.rect(-4.5, hY, 9, handleLen);
     pctx.fill();
-    // Paddle face
+
+    // Handle grip shadow
+    pctx.fillStyle = "rgba(0,0,0,0.2)";
+    pctx.fillRect(-4.5, hY, 2, handleLen);
+
+    // Paddle face centered at local (0,0)
     pctx.fillStyle = color;
     pctx.beginPath();
-    pctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
+    pctx.ellipse(0, 0, hR, hR * 0.75, 0, 0, Math.PI * 2);
     pctx.fill();
-    // Grip lines
-    pctx.strokeStyle = "rgba(0,0,0,0.18)";
+
+    // Realistic black rubber rim
+    pctx.strokeStyle = "#333";
+    pctx.lineWidth = 2.5;
+    pctx.stroke();
+
+    // Thin highlight on rim
+    pctx.strokeStyle = "rgba(255,255,255,0.3)";
+    pctx.lineWidth = 1;
+    pctx.stroke();
+
+    // Grip texture / lines
+    pctx.strokeStyle = "rgba(255,255,255,0.12)";
     pctx.lineWidth = 1;
     for (let i = -2; i <= 2; i++) {
       pctx.beginPath();
-      pctx.moveTo(i * 10 - 6, padY - hR * 0.55);
-      pctx.lineTo(i * 10 + 6, padY + hR * 0.55);
+      pctx.moveTo(i * 12 - 4, -hR * 0.4);
+      pctx.lineTo(i * 12 + 4, hR * 0.4);
       pctx.stroke();
     }
-    // Rim
-    pctx.strokeStyle = "rgba(255,255,255,0.22)";
-    pctx.lineWidth = 1.5;
-    pctx.beginPath();
-    pctx.ellipse(0, padY, hR, hR * 0.7, 0, 0, Math.PI * 2);
-    pctx.stroke();
-    // Shine
+
+    // Large shine for "premium" look
     pctx.fillStyle = "rgba(255,255,255,0.18)";
     pctx.beginPath();
-    pctx.ellipse(-hR * 0.25, padY - hR * 0.22, hR * 0.3, hR * 0.16, -0.3, 0, Math.PI * 2);
+    pctx.ellipse(-hR * 0.25, -hR * 0.2, hR * 0.4, hR * 0.22, -0.4, 0, Math.PI * 2);
     pctx.fill();
+
     pctx.restore();
     cacheRef.current = pc;
   }
-  const cyOffset = isPlayer ? 25 : -25;
-  ctx.drawImage(cacheRef.current, x - (PAD_W + 10) / 2, y - (cacheRef.current.height / 2) + cyOffset);
+
+  ctx.drawImage(cacheRef.current, x - cacheRef.current.width / 2, y - cacheRef.current.height / 2);
 }
 
 // ─── Pips row ─────────────────────────────────────────────────────────────────
@@ -305,7 +320,6 @@ export default function PingPong() {
   const pointersRef = useRef({});
   const keysRef = useRef({});
   const audioCtx = useRef(null);
-  const tableCanvasRef = useRef(null); // Offscreen canvas for table
   const p1CanvasRef = useRef(null);
   const p2CanvasRef = useRef(null);
 
@@ -370,14 +384,8 @@ export default function PingPong() {
     }
     const ctx = ctxRef.current;
 
-    // Initialize offscreen table if not already done
-    if (!tableCanvasRef.current) {
-      const tc = document.createElement("canvas");
-      tc.width = CW; tc.height = CH;
-      drawTable(tc.getContext("2d"));
-      tableCanvasRef.current = tc;
-    }
-    ctx.drawImage(tableCanvasRef.current, 0, 0);
+    // Draw table directly
+    drawTable(ctx);
 
     drawBounceRings(ctx, s.bounceRings);
     drawBall(ctx, s.bx, s.by, s.bz, s.trail);
@@ -403,11 +411,8 @@ export default function PingPong() {
 
   // ── Input listeners ────────────────────────────────────────────────────────
   useEffect(() => {
-    const dn = e => {
-      keysRef.current[e.key] = true;
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) e.preventDefault();
-    };
-    const up = e => { keysRef.current[e.key] = false; };
+    const dn = e => keysRef.current[e.key] = true;
+    const up = e => keysRef.current[e.key] = false;
     window.addEventListener("keydown", dn);
     window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", dn); window.removeEventListener("keyup", up); };
@@ -441,28 +446,27 @@ export default function PingPong() {
     setRally(0);
     pointersRef.current = {};
 
-    // ── Launch serve: ball arcs from server paddle to own side, bounces, then crosses net ──
     const launchServe = () => {
       if (s.server === "player") {
-        // Player serves: ball starts at player paddle, arcs UP (negative bvy)
-        // toward player's own side (bottom half), bounces, then crosses net toward CPU
         s.bx = s.px; s.by = s.py;
-        s.bvx = (Math.random() - 0.5) * 3;
-        s.bvy = -(s.speed * 0.7);  // moves toward net (up screen)
-        s.bvz = s.speed * 1.1;     // launches into the air
-        s.bz = 0;
+        s.bvx = (s.px - CW / 2) * 0.04 + (Math.random() - 0.5) * 1.5;
+        s.bvy = -4.5;
+        s.bvz = 5.5; 
+        s.bz = 18;  
       } else {
-        // CPU serves downward toward its own side (top half)
         s.bx = s.cx; s.by = s.cy;
-        s.bvx = (Math.random() - 0.5) * 3;
-        s.bvy = s.speed * 0.7;     // moves toward net (down screen)
-        s.bvz = s.speed * 1.1;
-        s.bz = 0;
+        s.bvx = (s.cx - CW / 2) * 0.04 + (Math.random() - 0.5) * 1.5;
+        s.bvy = 4.5;
+        s.bvz = 5.5;
+        s.bz = 18;
       }
       s.servePhase = "inAir";
       s.serveBounced = false;
       s.serving = false;
       s.trail = [];
+      ping(400);
+      s.pBounced = false;
+      s.cBounced = false;
     };
 
     let pointTmr = null;
@@ -517,21 +521,21 @@ export default function PingPong() {
       // ── Serve countdown ──────────────────────────────────────────────────
       if (s.serving) {
         s.stimer--;
-        // Ball MUST follow paddle during serve so it's not 'missing'
         if (s.server === "player") { s.bx = s.px; s.by = s.py; }
         else { s.bx = s.cx; s.by = s.cy; }
         s.bz = 0;
 
         if (s.stimer <= 0) launchServe();
 
-        // Paddles follow pointers during countdown
         if (p1Pointer) {
+          const serveLimitY = TABLE_BOTTOM - 60;
           s.px += (clamp(p1Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.px) * 0.35;
-          s.py += (clamp(p1Pointer.y, NET_Y + PAD_H + 6, TABLE_BOTTOM - 8 - PAD_H) - s.py) * 0.35;
+          s.py += (clamp(p1Pointer.y, serveLimitY, TABLE_BOTTOM - 20) - s.py) * 0.35;
         }
         if (gameModeRef.current === "2p" && p2Pointer) {
+          const serveLimitY = TABLE_TOP + 60;
           s.cx += (clamp(p2Pointer.x, TABLE_L + 8 + hR, TABLE_R - 8 - hR) - s.cx) * 0.35;
-          s.cy += (clamp(p2Pointer.y, TABLE_TOP + 8 + PAD_H, NET_Y - PAD_H - 6) - s.cy) * 0.35;
+          s.cy += (clamp(p2Pointer.y, TABLE_TOP + 20, serveLimitY) - s.cy) * 0.35;
         }
 
         draw(s);
@@ -604,7 +608,6 @@ export default function PingPong() {
       s.cvy = s.cy - prevCY;
 
       // ── Trail ─────────────────────────────────────────────────────────────
-      // Visual y = by - bz (ball appears above shadow)
       s.trail.push(s.bx, s.by - s.bz);
       if (s.trail.length > 28) {
         s.trail.shift();
@@ -618,7 +621,6 @@ export default function PingPong() {
       }
 
       // ── Ball physics (3D-like arc) ────────────────────────────────────────
-      // bvz = vertical velocity (height axis), gravity pulls it down
       s.bvz -= GRAVITY;
       s.bz += s.bvz;
       s.bx += s.bvx;
@@ -630,60 +632,46 @@ export default function PingPong() {
 
       // ── Table bounce (bz hits 0) ──────────────────────────────────────────
       if (s.bz <= 0 && s.bvz < 0) {
-        // Ball is on the TABLE SURFACE
         s.bz = 0;
         const speed = Math.hypot(s.bvx, s.bvy, s.bvz);
 
-        // Only bounce if ball is within the table area
         if (s.bx > TABLE_L && s.bx < TABLE_R && s.by > TABLE_TOP && s.by < TABLE_BOTTOM) {
-          const bounceDamp = 0.72; // lose some energy per bounce
+          const bounceDamp = 0.72;
           s.bvz = -s.bvz * bounceDamp;
           s.bvx *= 0.95;
           s.bvy *= 0.95;
 
-          // Add bounce ring effect
           s.bounceRings.push({ x: s.bx, y: s.by, life: 28, maxLife: 28 });
 
-          // Is this on player's side (bottom half) or CPU's side (top half)?
           const onPlayerSide = s.by > NET_Y;
           const onCPUSide = s.by < NET_Y;
 
           pong(onPlayerSide ? 520 : 420);
 
-          // Serve bounce rules
           if (s.servePhase === "inAir" && !s.serveBounced) {
-            // First bounce must be on server's own side
             if (s.server === "player" && onPlayerSide) {
-              s.serveBounced = true;
-              // Now reverse direction to send ball toward CPU (over the net)
-              // Give it a kick upward to arc over the net
+              s.serveBounced = true; s.pBounced = true;
               const spd = s.speed;
-              s.bvy = -(spd * 0.95 + Math.random() * 0.4); // going UP toward net
+              s.bvy = -(spd * 0.95 + Math.random() * 0.4);
               s.bvx = (s.bvx * 0.5) + (Math.random() - 0.5) * 1.5;
-              s.bvz = spd * 1.1 + Math.random() * 0.2;    // arc up into the air
+              s.bvz = spd * 1.1 + Math.random() * 0.2;
             } else if (s.server === "cpu" && onCPUSide) {
-              s.serveBounced = true;
+              s.serveBounced = true; s.cBounced = true;
               const spd = s.speed;
-              s.bvy = spd * 0.95 + Math.random() * 0.4;    // going DOWN toward net
+              s.bvy = spd * 0.95 + Math.random() * 0.4;
               s.bvx = (s.bvx * 0.5) + (Math.random() - 0.5) * 1.5;
               s.bvz = spd * 1.1 + Math.random() * 0.2;
             } else if (!s.serveBounced) {
-              // Wrong side bounce → fault
               awardPoint(s.server === "player" ? "cpu" : "player", "Wrong serve side!");
               return;
             }
-          } else if (s.serveBounced && s.servePhase === "inAir") {
-            // Serve ball bounced on opponent's side → serve is live!
-            s.servePhase = "live";
-          } else if (s.servePhase === "live") {
-            // Normal play bounce — the ball bounced; the other player now must hit it back
-            // after one bounce (2 bounces on one side = point to opponent)
-            // For simplicity in this version, bouncing is just physics — scoring only on miss
+          } else {
+            if (onPlayerSide) s.pBounced = true;
+            if (onCPUSide) s.cBounced = true;
+            if (s.servePhase === "inAir" && s.serveBounced) s.servePhase = "live";
           }
 
-          // Stop extremely slow bvz (ball is basically rolling → treat as out of play)
           if (Math.abs(s.bvz) < 0.5 && s.bz < 1) {
-            // Ball came to rest on table — whoever's side it's on loses
             if (s.servePhase === "live") {
               const onP = s.by > NET_Y;
               awardPoint(onP ? "cpu" : "player", onP ? "Missed return!" : "CPU missed!");
@@ -692,30 +680,22 @@ export default function PingPong() {
           }
 
         } else {
-          // Ball bounced OUTSIDE table — it's out
           if (s.servePhase === "live" || s.serveBounced) {
             const onP = s.by > NET_Y;
             awardPoint(onP ? "player" : "cpu", "Out of bounds!");
             return;
           }
-          // Ball went out during serve
           awardPoint(s.server === "player" ? "cpu" : "player", "Serve out of bounds!");
           return;
         }
       }
 
-      // ── Net collision (ball is low and near net) ───────────────────────────
-      // Ball visually y = by, check if it's crossing net height at net Y
+      // ── Net collision ───────────────────────────
       const netVisualY = s.by - s.bz;
       if (netVisualY > NET_Y - NET_H - BALL_R && netVisualY < NET_Y + NET_H + BALL_R &&
         Math.abs(s.by - NET_Y) < 30 && s.bz < NET_H + BALL_R) {
-        // Hit the net
-        if (s.bvz > 0 && s.bz < NET_H + BALL_R + 2) {
-          // Ball clears the net only if it's high enough
-          // If too low, it hits the net
-        }
+        if (s.bvz > 0 && s.bz < NET_H + BALL_R + 2) { }
         if (s.bz < NET_H - 1) {
-          // Ball hits net — reverse bvy slightly and lose energy
           s.bvy = -s.bvy * 0.3;
           s.bvz = Math.abs(s.bvz) * 0.35;
           s.bz = NET_H - 1;
@@ -730,26 +710,31 @@ export default function PingPong() {
         }
       }
 
-      // ── Paddle hit (ball must be low / near table surface to be hittable) ──
-      const PADDLE_HIT_Z = hR * 1.2; // max z-height to hit paddle
-      const PAD_FACE_Y_P = -hR * 0.65; // face offset on player's paddle
-      const PAD_FACE_Y_C = hR * 0.65;
+      const wasOnP = (s.by - s.bvy) > NET_Y;
+      const isOnP = s.by > NET_Y;
+      if (wasOnP !== isOnP) {
+        if (isOnP) s.pBounced = false; // Just crossed to player side
+        else s.cBounced = false;      // Just crossed to CPU side
+      }
 
-      // Player paddle hit: ball coming downward (bvz negative) or near table
+      // ── Paddle hit detection ───────────────────────────────────────────────
+      const PADDLE_HIT_Z = hR * 1.8;
+      const visualBy = s.by - s.bz;
+
       const pdx = s.bx - s.px;
-      const pdy = (s.by - s.bz) - (s.py + PAD_FACE_Y_P);
+      const pdy = visualBy - s.py;
       const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
-      if (pDist < BALL_R + hR * 0.85 && s.bz < PADDLE_HIT_Z && s.bvy > 0 && s.by < TABLE_BOTTOM) {
-        // ── PING! Player hit ──
+      const pHittable = s.pBounced || (s.bz < PADDLE_HIT_Z * 0.6 && s.by > NET_Y);
+      if (pDist < hR * 1.25 && s.bz < PADDLE_HIT_Z && s.bvy > 0 && s.by < TABLE_BOTTOM && pHittable) {
         const spd = s.speed;
         const nx = pdx / (pDist || 1);
         const ny = pdy / (pDist || 1);
 
-        // Reflect + add player velocity influence
         s.bvx = nx * spd * 0.85 + s.pvx * 0.55;
-        s.bvy = -(spd * 1.15 + Math.random() * 0.5); // send toward CPU (upward on screen)
-        s.bvz = spd * 1.3 + Math.abs(s.pvy) * 0.25;  // arc into air!
-        s.bz = PADDLE_HIT_Z + 2; // pop up off the surface
+        s.bvy = -(spd * 1.15 + Math.random() * 0.5);
+        s.bvz = spd * 1.3 + Math.abs(s.pvy) * 0.25;
+        s.bz = PADDLE_HIT_Z + 2;
+        s.pBounced = false;
 
         s.speed = Math.min(16, s.speed + 0.28);
         s.rallyHits++;
@@ -762,18 +747,19 @@ export default function PingPong() {
         if (s.servePhase !== "live") s.servePhase = "live";
       }
 
-      // CPU paddle hit: ball coming upward (bvy negative)
       const cdx = s.bx - s.cx;
-      const cdy = (s.by - s.bz) - (s.cy + PAD_FACE_Y_C);
+      const cdy = visualBy - s.cy;
       const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
-      if (cDist < BALL_R + hR * 0.85 && s.bz < PADDLE_HIT_Z && s.bvy < 0 && s.by > TABLE_TOP) {
+      const cHittable = s.cBounced || (s.bz < PADDLE_HIT_Z * 0.6 && s.by < NET_Y);
+      if (cDist < hR * 1.2 && s.bz < PADDLE_HIT_Z && s.bvy < 0 && s.by > TABLE_TOP && cHittable) {
         const spd = s.speed;
         const nx = cdx / (cDist || 1);
 
         s.bvx = nx * spd * 0.85 + s.cvx * 0.5;
-        s.bvy = spd * 1.25 + Math.random() * 0.5;   // send toward player (downward)
+        s.bvy = spd * 1.25 + Math.random() * 0.5;
         s.bvz = spd * 1.4;
         s.bz = PADDLE_HIT_Z + 2;
+        s.cBounced = false;
 
         s.speed = Math.min(16, s.speed + 0.28);
         s.rallyHits++;
@@ -788,10 +774,10 @@ export default function PingPong() {
 
       // ── Ball completely exits the canvas vertically ───────────────────────
       if (s.by > TABLE_BOTTOM + 15) {
-        awardPoint("cpu", "Ball out past player!"); return;
+        awardPoint(s.pBounced ? "cpu" : "player", s.pBounced ? "Missed the table!" : "CPU hit long!"); return;
       }
       if (s.by < TABLE_TOP - 15) {
-        awardPoint("player", "Ball out past CPU!"); return;
+        awardPoint(s.cBounced ? "player" : "cpu", s.cBounced ? "CPU missed table!" : "Hit out long!"); return;
       }
 
       draw(s);
@@ -813,64 +799,86 @@ export default function PingPong() {
   return (
     <div style={{
       width: "100vw", height: "100vh", overflow: "hidden",
-      background: "#dec49cff",
+      background: "#111",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       fontFamily: "Georgia, serif", color: "#3e2723",
     }}>
+      <style>{`
+        .responsive-wrapper {
+          display: flex; flex-direction: column;
+          width: min(95vw, 400px);
+          height: auto;
+          max-height: 98vh;
+          position: relative;
+          background: #3e2723;
+          border-radius: 12px;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+        @media (max-width: 820px) {
+          .responsive-wrapper {
+            width: min(100vw, calc((100dvh - 40px) * 520 / 780)) !important;
+            height: calc(100dvh - 10px) !important;
+            max-height: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+          }
+          .score-bar {
+             padding: 0 !important;
+             border-width: 2px !important;
+          }
+          .canvas-container {
+             border-width: 2px !important;
+          }
+        }
+      `}</style>
       {/* ── Game wrapper ── */}
-      <div style={{
-        display: "flex", flexDirection: "column",
-        width: "min(95vw, calc(90vh * 520 / 800))",
-        maxHeight: "100vh",
-      }}>
+      <div className="responsive-wrapper">
         {/* ── Score bar ── */}
-        <div style={{
+        <div className="score-bar" style={{
           background: "rgba(180, 140, 90, 0.4)",
           backdropFilter: "blur(10px)",
           border: "3px solid #5d3a1a", borderBottom: "none",
-          borderRadius: "14px 14px 0 0", padding: "9px 20px 7px",
+          borderRadius: "14px 14px 0 0", padding: 0,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0,
         }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <div style={{ fontSize: 9, color: "#3e2723", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P1 (YOU)" : "YOU"}</div>
-            <div style={{ fontSize: 30, fontWeight: "bold", color: "#d32f2f", lineHeight: 1, fontFamily: "monospace" }}>{scoreP}</div>
-            <Pips filled={scoreP} color="#f44336" />
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P1 (YOU)" : "YOU"}</div>
+            <div style={{ fontSize: 30, fontWeight: "bold", color: "#ff6b6b", lineHeight: 1, fontFamily: "monospace", textShadow: "0 0 8px rgba(255,107,107,0.4)" }}>{scoreP}</div>
+            <Pips filled={scoreP} color="#ff6b6b" />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9, color: "#3e2723", fontWeight: "bold" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: serveBy === "player" ? "#d32f2f" : "#1565c0", boxShadow: `0 0 4px ${serveBy === "player" ? "#d32f2f" : "#1565c0"}` }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9, color: "rgba(255,255,255,0.85)", fontWeight: "bold" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: serveBy === "player" ? "#ff6b6b" : "#4ecdc4", boxShadow: `0 0 6px ${serveBy === "player" ? "#ff6b6b" : "#4ecdc4"}` }} />
               <span>{serveBy === "player" ? (gameMode === "2p" ? "P1 SERVE" : "YOUR SERVE") : (gameMode === "2p" ? "P2 SERVE" : "CPU SERVE")}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-              <div style={{ fontSize: 7, color: "#5d3a1a", fontWeight: "bold", letterSpacing: 1 }}>SPEED</div>
-              <div style={{ width: 66, height: 5, background: "rgba(0,0,0,0.18)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${speedPct}%`, background: "linear-gradient(90deg, #4caf50, #ffeb3b, #f44336)", transition: "width 0.3s" }} />
+              <div style={{ fontSize: 7, color: "rgba(255,255,255,0.45)", fontWeight: "bold", letterSpacing: 1 }}>SPEED</div>
+              <div style={{ width: 66, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${speedPct}%`, background: "linear-gradient(90deg, #4ecdc4, #ffeb3b, #ff6b6b)", transition: "width 0.3s" }} />
               </div>
             </div>
-            <div style={{ fontSize: 8, color: "#5d3a1a" }}>
-              RALLY <span style={{ color: "#3e2723", fontWeight: "bold" }}>{rally}</span>
+            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
+              RALLY <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: "bold" }}>{rally}</span>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-            <div style={{ fontSize: 9, color: "#5d3a1a", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P2" : "CPU"}</div>
-            <div style={{ fontSize: 30, fontWeight: "bold", color: "#1565c0", lineHeight: 1, fontFamily: "monospace" }}>{scoreC}</div>
-            <Pips filled={scoreC} color="#1976d2" />
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "P2" : "CPU"}</div>
+            <div style={{ fontSize: 30, fontWeight: "bold", color: "#4ecdc4", lineHeight: 1, fontFamily: "monospace", textShadow: "0 0 8px rgba(78,205,196,0.4)" }}>{scoreC}</div>
+            <Pips filled={scoreC} color="#4ecdc4" />
           </div>
         </div>
 
         {/* ── Canvas ── */}
-        <div style={{
+        <div className="canvas-container" style={{
           position: "relative",
-          border: "3px solid #5d3a1a",
-          borderRadius: "0 0 14px 14px",
           overflow: "hidden",
           lineHeight: 0,
           flex: 1, minHeight: 0,
-          background: "#dec49cff",
+          background: "transparent",
         }}>
           <canvas
             ref={canvasRef}
@@ -915,7 +923,7 @@ export default function PingPong() {
           {showOverlay && (
             <div style={{
               position: "absolute", inset: 0,
-              background: "rgba(62,39,35,0.9)",
+              background: "rgba(0,0,0,0.7)",
               display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",
               gap: 20, zIndex: 20,
@@ -929,11 +937,14 @@ export default function PingPong() {
                       onClick={() => { setGameMode("1p"); startGame(0, 0, "player"); }}
                       style={{
                         background: "#d4a96a", color: "#3e2723",
-                        border: "none", borderRadius: 8, padding: "8px 12px",
-                        fontSize: 16, fontWeight: "bold", cursor: "pointer",
+                        border: "none", borderRadius: 8, padding: "10px 20px",
+                        fontSize: 18, fontWeight: "bold", cursor: "pointer",
                         fontFamily: "Georgia, serif", letterSpacing: 2,
                         boxShadow: "0 4px 0 #5d3a1a",
+                        minWidth: 140, transition: "all 0.1s",
                       }}
+                      onMouseDown={(e) => { e.currentTarget.style.transform = "translateY(2px)"; e.currentTarget.style.boxShadow = "0 2px 0 #5d3a1a"; }}
+                      onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 0 #5d3a1a"; }}
                     >
                       1 PLAYER
                     </button>
@@ -941,11 +952,14 @@ export default function PingPong() {
                       onClick={() => { setGameMode("2p"); startGame(0, 0, "player"); }}
                       style={{
                         background: "#d4a96a", color: "#3e2723",
-                        border: "none", borderRadius: 8, padding: "5px 2px",
-                        fontSize: 16, fontWeight: "bold", cursor: "pointer",
+                        border: "none", borderRadius: 8, padding: "10px 20px",
+                        fontSize: 18, fontWeight: "bold", cursor: "pointer",
                         fontFamily: "Georgia, serif", letterSpacing: 2,
                         boxShadow: "0 4px 0 #5d3a1a",
+                        minWidth: 140, transition: "all 0.1s",
                       }}
+                      onMouseDown={(e) => { e.currentTarget.style.transform = "translateY(2px)"; e.currentTarget.style.boxShadow = "0 2px 0 #5d3a1a"; }}
+                      onMouseUp={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 0 #5d3a1a"; }}
                     >
                       2 PLAYERS
                     </button>
