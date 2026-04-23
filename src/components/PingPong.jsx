@@ -356,10 +356,12 @@ export default function PingPong() {
     <div style={{
       width: "100vw", height: "100dvh", overflow: "hidden", position: "relative",
       display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia, serif", color: "#fff",
-      background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%), repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)`,
+      background: `#1a0f06 radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%), repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)`,
       boxShadow: "inset 0 0 100px rgba(0,0,0,0.9)",
     }}>
       <style>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { background: #1a0f06; }
         @keyframes fade-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .game-canvas-wrapper { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
         @media (max-width: 600px) {
