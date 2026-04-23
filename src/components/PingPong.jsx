@@ -227,17 +227,25 @@ export default function PingPong() {
   const scoreSound = useCallback(() => { try { createPingSound(getAudio(), 520, "score"); } catch { } }, []);
   const showMsg = useCallback((t, d = 1200) => { setMsg(t); setTimeout(() => setMsg(""), d); }, []);
 
-  const mkSt = (sp, sc, direction) => ({
-    px: CW / 2, py: TABLE_BOTTOM - 48, pvx: 0, pvy: 0,
-    cx: CW / 2, cy: TABLE_TOP + 48, cvx: 0, cvy: 0,
-    bx: CW / 2, by: NET_Y - direction * 120, bz: 75,
-    bvx: (Math.random() - 0.5) * 5, bvy: direction * 6.5, bvz: 0,
-    sp, sc,
-    speed: 4.8,
-    trail: [], bounceRings: [],
-    rallyHits: 0, aiErrX: 0, aiTimer: 0,
-    pBounced: false, cBounced: false, lastHit: null, serving: false
-  });
+  const mkSt = (sp, sc, direction, mode, isInitial) => {
+    const isAIServing = (direction === 1 && mode === "1p");
+    return {
+      px: CW / 2, py: TABLE_BOTTOM - 48, pvx: 0, pvy: 0,
+      cx: CW / 2, cy: TABLE_TOP + 48, cvx: 0, cvy: 0,
+      bx: CW / 2, by: NET_Y - direction * 120, bz: isAIServing ? 75 : 40,
+      bvx: isAIServing ? (Math.random() - 0.5) * 5 : 0,
+      bvy: isAIServing ? direction * 6.5 : 0,
+      bvz: 0,
+      sp, sc,
+      speed: 4.8,
+      trail: [], bounceRings: [],
+      rallyHits: 0, aiErrX: 0, aiTimer: 0,
+      pBounced: false, cBounced: false, lastHit: null,
+      serving: !isAIServing,
+      server: direction === 1 ? "ai" : "player",
+      waitTimer: isInitial ? 120 : 0
+    };
+  };
 
   const draw = useCallback((s) => {
     const c = canvasRef.current; if (!c) return;
@@ -250,10 +258,10 @@ export default function PingPong() {
     drawPaddle(ctx, s.cx, s.cy, false, p2CanvasRef);
   }, []);
 
-  const startGame = useCallback((isp, isc, dir) => {
+  const startGame = useCallback((isp, isc, dir, mode, isInitial) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     runRef.current = true;
-    const s = mkSt(isp, isc, dir); stRef.current = s;
+    const s = mkSt(isp, isc, dir, mode, isInitial); stRef.current = s;
     setPhase("playing"); setScoreP(isp); setScoreC(isc); setRally(0);
 
     const awardPoint = (winner, reason) => {
@@ -261,16 +269,23 @@ export default function PingPong() {
       scoreSound();
       if (winner === "player") { s.sp++; setScoreP(s.sp); } else { s.sc++; setScoreC(s.sc); }
       draw(s);
-      const winLabel = winner === "player" ? (gameModeRef.current === "2p" ? "P1" : "POINT!") : (gameModeRef.current === "2p" ? "P2" : "CPU");
+      const winLabel = winner === "player" ? (mode === "2p" ? "P1" : "POINT!") : (mode === "2p" ? "P2" : "AI");
       showMsg(`${winLabel} ${reason}`, 1300);
       if (s.sp >= WIN_SCORE) { setTimeout(() => setPhase("won"), 1000); return; }
       if (s.sc >= WIN_SCORE) { setTimeout(() => setPhase("lost"), 1000); return; }
-      setTimeout(() => startGame(s.sp, s.sc, winner === "player" ? -1 : 1), 1500);
+      setTimeout(() => startGame(s.sp, s.sc, winner === "player" ? -1 : 1, mode, false), 1500);
     };
 
     const loop = () => {
       if (!runRef.current) return;
-      const s = stRef.current, k = keysRef.current;
+      const s = stRef.current;
+      if (s.waitTimer > 0) { s.waitTimer--; draw(s); rafRef.current = requestAnimationFrame(loop); return; }
+
+      if (s.serving) {
+        if (s.server === "player") { s.bx = s.px; s.by = s.py - 30; }
+        else { s.bx = s.cx; s.by = s.cy + 30; }
+        s.bz = 40;
+      }
       let p1p = null, p2p = null;
       Object.values(pointersRef.current).forEach(p => { if (p.y > NET_Y) p1p = p; else p2p = p; });
       if (gameModeRef.current === "1p" && !p1p) p1p = Object.values(pointersRef.current)[0];
@@ -302,23 +317,23 @@ export default function PingPong() {
         if (s.bx > TABLE_L && s.bx < TABLE_R && s.by > TABLE_TOP && s.by < TABLE_BOTTOM) {
           const onP = s.by > NET_Y; pong(onP ? 520 : 420);
           s.bounceRings.push({ x: s.bx, y: s.by, life: 28, maxLife: 28 });
-          if (onP) { if (s.pBounced) { awardPoint("cpu", "Double Bounce"); return; } s.pBounced = true; }
+          if (onP) { if (s.pBounced) { awardPoint("AI", "Double Bounce"); return; } s.pBounced = true; }
           else { if (s.cBounced) { awardPoint("player", "Double Bounce"); return; } s.cBounced = true; }
         } else {
           const onP = s.by > NET_Y;
-          if (onP) awardPoint(s.pBounced ? "cpu" : "player", "Out");
-          else awardPoint(s.cBounced ? "player" : "cpu", "Out");
+          if (onP) awardPoint(s.pBounced ? "AI" : "player", "Out");
+          else awardPoint(s.cBounced ? "player" : "AI", "Out");
           return;
         }
       }
 
       if (Math.abs(s.by - NET_Y) < (Math.abs(s.bvy) + 2) && s.bz < NET_H) {
-        awardPoint(s.bvy > 0 ? "player" : "cpu", "Net Fault"); return;
+        awardPoint(s.bvy > 0 ? "player" : "AI", "Net Fault"); return;
       }
 
       const visualBy = s.by - s.bz, pdx = s.bx - s.px, pdy = visualBy - s.py, pDist = Math.hypot(pdx, pdy);
-      if (pDist < hR * 1.6 && s.bz < 65 && s.bvy > 0 && s.by < TABLE_BOTTOM) {
-        s.lastHit = "player";
+      if (pDist < hR * 1.6 && s.bz < 65 && (s.bvy > 0 || s.serving) && s.by < TABLE_BOTTOM) {
+        s.lastHit = "player"; s.serving = false;
         s.bvy = -(s.speed * 0.82 + Math.abs(s.pvy) * 0.15);
         s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.3;
         s.bvz = s.speed * 1.0 + Math.abs(s.pvy) * 0.35; s.bz = 40;
@@ -326,8 +341,8 @@ export default function PingPong() {
         setRally(++s.rallyHits); ping(820);
       }
       const cdx = s.bx - s.cx, cdy = visualBy - s.cy, cDist = Math.hypot(cdx, cdy);
-      if (cDist < hR * 1.6 && s.bz < 65 && s.bvy < 0 && s.by > TABLE_TOP) {
-        s.lastHit = "cpu";
+      if (cDist < hR * 1.6 && s.bz < 65 && (s.bvy < 0 || s.serving) && s.by > TABLE_TOP) {
+        s.lastHit = "AI"; s.serving = false;
         s.bvy = (s.speed * 0.82 + Math.abs(s.cvy) * 0.15);
         s.bvx = (cdx / hR) * s.speed * 0.45 + s.cvx * 0.3;
         s.bvz = s.speed * 1.1 + Math.abs(s.cvy) * 0.35; s.bz = 40;
@@ -335,8 +350,8 @@ export default function PingPong() {
         setRally(++s.rallyHits); ping(680);
       }
 
-      if (s.by > TABLE_BOTTOM + 40) { awardPoint(s.pBounced ? "cpu" : "player", "Out"); return; }
-      if (s.by < TABLE_TOP - 40) { awardPoint(s.cBounced ? "player" : "cpu", "Out"); return; }
+      if (s.by > TABLE_BOTTOM + 40) { awardPoint(s.pBounced ? "AI" : "player", "Out"); return; }
+      if (s.by < TABLE_TOP - 40) { awardPoint(s.cBounced ? "player" : "AI", "Out"); return; }
 
       draw(s); rafRef.current = requestAnimationFrame(loop);
     };
@@ -353,12 +368,14 @@ export default function PingPong() {
   const showOverlay = phase === "idle" || phase === "won" || phase === "lost";
 
   return (
-    <div style={{
-      width: "100vw", height: "100dvh", overflow: "hidden", position: "relative",
-      display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia, serif", color: "#fff",
-      background: `#1a0f06 radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%), repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)`,
-      boxShadow: "inset 0 0 100px rgba(0,0,0,0.9)",
-    }}>
+    <div
+      onPointerMove={onPointerEvent} onPointerDown={onPointerEvent} onPointerUp={onPointerEvent}
+      style={{
+        width: "100vw", height: "100dvh", overflow: "hidden", position: "relative",
+        display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia, serif", color: "#fff",
+        background: `#1a0f06 radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%), repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)`,
+        boxShadow: "inset 0 0 100px rgba(0,0,0,0.9)",
+      }}>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { background: #1a0f06; }
@@ -377,7 +394,7 @@ export default function PingPong() {
             <div className="mobile-hud-score" style={{ fontSize: "min(14vw, 100px)", fontWeight: "900", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", lineHeight: "1" }}>{scoreP}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-            <div className="mobile-hud-label" style={{ fontSize: "min(3.5vw, 24px)", color: "rgba(255,255,255,0.5)", fontWeight: "bold", letterSpacing: 2, marginBottom: "2px" }}>{gameMode === "2p" ? "PLAYER 2" : "CPU"}</div>
+            <div className="mobile-hud-label" style={{ fontSize: "min(3.5vw, 24px)", color: "rgba(255,255,255,0.5)", fontWeight: "bold", letterSpacing: 2, marginBottom: "2px" }}>{gameMode === "2p" ? "PLAYER 2" : "AI"}</div>
             <div className="mobile-hud-score" style={{ fontSize: "min(14vw, 100px)", fontWeight: "900", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", lineHeight: "1" }}>{scoreC}</div>
           </div>
         </div>
@@ -386,7 +403,6 @@ export default function PingPong() {
         <canvas
           ref={canvasRef} width={CW} height={CH}
           style={{ display: "block", width: "min(100vw, 100dvh * (520 / 720))", height: "min(100dvh, 100vw * (720 / 520))", touchAction: "none", cursor: "crosshair", boxShadow: "0 0 100px rgba(0,0,0,0.5)" }}
-          onPointerMove={onPointerEvent} onPointerDown={onPointerEvent} onPointerUp={onPointerEvent}
           onClick={() => { if (stRef.current?.serving && stRef.current.server === "player") stRef.current.stimer = 0; }}
         />
         {msg && (
@@ -401,8 +417,8 @@ export default function PingPong() {
                 <h1 style={{ fontSize: 10, color: "#a0724a", letterSpacing: 6, margin: 0 }}>TABLE TENNIS</h1>
                 <h2 style={{ fontSize: 20, fontWeight: "bold", color: "#d4a96a", letterSpacing: 5, margin: "4px 0" }}>PING PONG</h2>
                 <div style={{ display: "flex", gap: 15, marginTop: 12 }}>
-                  <button onClick={() => { setGameMode("1p"); startGame(0, 0, 1); }} style={btnStyle}>1 PLAYER</button>
-                  <button onClick={() => { setGameMode("2p"); startGame(0, 0, 1); }} style={btnStyle}>2 PLAYERS</button>
+                  <button onClick={() => { setGameMode("1p"); gameModeRef.current = "1p"; startGame(0, 0, 1, "1p", true); }} style={btnStyle}>1 PLAYER</button>
+                  <button onClick={() => { setGameMode("2p"); gameModeRef.current = "2p"; startGame(0, 0, 1, "2p", true); }} style={btnStyle}>2 PLAYERS</button>
                 </div>
               </>
             )}
@@ -413,7 +429,7 @@ export default function PingPong() {
                   <div style={{ fontSize: 48, fontWeight: "900", color: phase === "won" ? "#4caf50" : "#f44336" }}>{phase === "won" ? "VICTORY!" : "DEFEAT!"}</div>
                   <div style={{ display: "flex", gap: 30 }}>
                     <ScoreDisplay label={gameMode === "2p" ? "P1" : "YOU"} score={scoreP} color="#f44336" />
-                    <ScoreDisplay label={gameMode === "2p" ? "P2" : "CPU"} score={scoreC} color="#1e88e5" />
+                    <ScoreDisplay label={gameMode === "2p" ? "P2" : "AI"} score={scoreC} color="#1e88e5" />
                   </div>
                   <button onClick={() => { setScoreP(0); setScoreC(0); startGame(0, 0, 1); }} style={actionBtnStyle}>PLAY AGAIN</button>
                   <button onClick={() => { setPhase("idle"); }} style={outlineBtnStyle}>BACK TO MENU</button>
