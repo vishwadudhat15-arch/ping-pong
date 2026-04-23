@@ -305,7 +305,10 @@ export default function PingPong() {
           if (onP) { if (s.pBounced) { awardPoint("cpu", "Double Bounce"); return; } s.pBounced = true; }
           else { if (s.cBounced) { awardPoint("player", "Double Bounce"); return; } s.cBounced = true; }
         } else {
-          awardPoint(s.lastHit === "player" ? "cpu" : "player", "Out"); return;
+          const onP = s.by > NET_Y;
+          if (onP) awardPoint(s.pBounced ? "cpu" : "player", "Out");
+          else awardPoint(s.cBounced ? "player" : "cpu", "Out");
+          return;
         }
       }
 
@@ -316,8 +319,8 @@ export default function PingPong() {
       const visualBy = s.by - s.bz, pdx = s.bx - s.px, pdy = visualBy - s.py, pDist = Math.hypot(pdx, pdy);
       if (pDist < hR * 1.6 && s.bz < 65 && s.bvy > 0 && s.by < TABLE_BOTTOM) {
         s.lastHit = "player";
-        s.bvy = -(s.speed * 1.02 + Math.abs(s.pvy) * 0.25);
-        s.bvx = (pdx / hR) * s.speed * 0.95 + s.pvx * 0.65;
+        s.bvy = -(s.speed * 0.82 + Math.abs(s.pvy) * 0.15);
+        s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.3;
         s.bvz = s.speed * 1.0 + Math.abs(s.pvy) * 0.35; s.bz = 40;
         s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.15);
         setRally(++s.rallyHits); ping(820);
@@ -325,15 +328,15 @@ export default function PingPong() {
       const cdx = s.bx - s.cx, cdy = visualBy - s.cy, cDist = Math.hypot(cdx, cdy);
       if (cDist < hR * 1.6 && s.bz < 65 && s.bvy < 0 && s.by > TABLE_TOP) {
         s.lastHit = "cpu";
-        s.bvy = (s.speed * 1.02 + Math.abs(s.cvy) * 0.25);
-        s.bvx = (cdx / hR) * s.speed * 0.95 + s.cvx * 0.65;
+        s.bvy = (s.speed * 0.82 + Math.abs(s.cvy) * 0.15);
+        s.bvx = (cdx / hR) * s.speed * 0.45 + s.cvx * 0.3;
         s.bvz = s.speed * 1.1 + Math.abs(s.cvy) * 0.35; s.bz = 40;
         s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.15);
         setRally(++s.rallyHits); ping(680);
       }
 
-      if (s.by > TABLE_BOTTOM + 40) { awardPoint(s.lastHit === "player" ? "cpu" : "player", "Out"); return; }
-      if (s.by < TABLE_TOP - 40) { awardPoint(s.lastHit === "cpu" ? "player" : "cpu", "Out"); return; }
+      if (s.by > TABLE_BOTTOM + 40) { awardPoint(s.pBounced ? "cpu" : "player", "Out"); return; }
+      if (s.by < TABLE_TOP - 40) { awardPoint(s.cBounced ? "player" : "cpu", "Out"); return; }
 
       draw(s); rafRef.current = requestAnimationFrame(loop);
     };
@@ -366,14 +369,14 @@ export default function PingPong() {
         }
       `}</style>
       {phase !== "idle" && !showOverlay && (
-        <div className="mobile-hud" style={{ position: "absolute", top: "4dvh", left: "6vw", right: "6vw", display: "flex", justifyContent: "space-between", zIndex: 11 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div className="mobile-hud-label" style={{ fontSize: "min(3vw, 22px)", color: "rgba(255,255,255,0.4)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "PLAYER 1" : "YOU"}</div>
-            <div className="mobile-hud-score" style={{ fontSize: "min(12vw, 90px)", fontWeight: "900", color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>{scoreP}</div>
+        <div className="mobile-hud" style={{ position: "absolute", top: "5dvh", left: "8vw", right: "8vw", display: "flex", justifyContent: "space-between", zIndex: 11 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+            <div className="mobile-hud-label" style={{ fontSize: "min(3.5vw, 24px)", color: "rgba(255,255,255,0.5)", fontWeight: "bold", letterSpacing: 2, marginBottom: "2px" }}>{gameMode === "2p" ? "PLAYER 1" : "YOU"}</div>
+            <div className="mobile-hud-score" style={{ fontSize: "min(14vw, 100px)", fontWeight: "900", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", lineHeight: "1" }}>{scoreP}</div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div className="mobile-hud-label" style={{ fontSize: "min(3vw, 22px)", color: "rgba(255,255,255,0.4)", fontWeight: "bold", letterSpacing: 2 }}>{gameMode === "2p" ? "PLAYER 2" : "CPU"}</div>
-            <div className="mobile-hud-score" style={{ fontSize: "min(12vw, 90px)", fontWeight: "900", color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>{scoreC}</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+            <div className="mobile-hud-label" style={{ fontSize: "min(3.5vw, 24px)", color: "rgba(255,255,255,0.5)", fontWeight: "bold", letterSpacing: 2, marginBottom: "2px" }}>{gameMode === "2p" ? "PLAYER 2" : "CPU"}</div>
+            <div className="mobile-hud-score" style={{ fontSize: "min(14vw, 100px)", fontWeight: "900", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", lineHeight: "1" }}>{scoreC}</div>
           </div>
         </div>
       )}
