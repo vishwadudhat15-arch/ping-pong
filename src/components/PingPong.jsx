@@ -282,9 +282,21 @@ export default function PingPong() {
       if (s.waitTimer > 0) { s.waitTimer--; draw(s); rafRef.current = requestAnimationFrame(loop); return; }
 
       if (s.serving) {
-        if (s.server === "player") { s.bx = s.px; s.by = s.py - 30; }
-        else { s.bx = s.cx; s.by = s.cy + 30; }
-        s.bz = 40;
+        if (s.server === "player") {
+          s.bx = s.px; s.by = s.py - 20; s.bz = 20;
+          if (!msg) setMsg("P1: TAP YOUR SIDE TO SERVE");
+          if (stRef.current.isServeP1) { setMsg(""); stRef.current.isServeP1 = false; }
+          else { draw(s); rafRef.current = requestAnimationFrame(loop); return; }
+        } else {
+          s.bx = s.cx; s.by = s.cy + 30; s.bz = 20;
+          if (gameModeRef.current === "2p") {
+            if (!msg) setMsg("P2: TAP YOUR SIDE TO SERVE");
+            if (stRef.current.isServeP2) { setMsg(""); stRef.current.isServeP2 = false; }
+            else { draw(s); rafRef.current = requestAnimationFrame(loop); return; }
+          } else {
+            s.bz = 40; // AI serves immediately
+          }
+        }
       }
       let p1p = null, p2p = null;
       Object.values(pointersRef.current).forEach(p => { if (p.y > NET_Y) p1p = p; else p2p = p; });
@@ -332,17 +344,38 @@ export default function PingPong() {
       }
 
       const visualBy = s.by - s.bz, pdx = s.bx - s.px, pdy = visualBy - s.py, pDist = Math.hypot(pdx, pdy);
-      if (pDist < hR * 1.6 && s.bz < 65 && (s.bvy > 0 || s.serving) && s.by < TABLE_BOTTOM) {
-        s.lastHit = "player"; s.serving = false;
-        s.bvy = -(s.speed * 0.82 + Math.abs(s.pvy) * 0.15);
-        s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.3;
-        s.bvz = s.speed * 1.0 + Math.abs(s.pvy) * 0.35; s.bz = 40;
-        s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.15);
+
+      // Proper automatic collision hit (no click required for rallying)
+      const hitRadius = hR * 1.4;
+
+      if (pDist < hitRadius && s.bz < 100 && (s.bvy > 0 || s.serving)) {
+        const wasServing = s.serving;
+        s.lastHit = "player"; s.serving = false; s.isServeBounced = false;
+        s.isServingSequence = wasServing;
+        stRef.current.isServeP1 = false;
+        stRef.current.isServeP2 = false;
+        stRef.current.isManualHitRequested = false;
+
+        const forwardBoost = wasServing ? 1.45 : 0.85;
+        s.bvy = -(s.speed * forwardBoost + Math.abs(s.pvy) * 0.12);
+        s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.25;
+        s.bvz = s.speed * 0.9 + Math.abs(s.pvy) * 0.2;
+        s.bz = 40;
+        s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.1);
         setRally(++s.rallyHits); ping(820);
       }
       const cdx = s.bx - s.cx, cdy = visualBy - s.cy, cDist = Math.hypot(cdx, cdy);
-      if (cDist < hR * 1.6 && s.bz < 65 && (s.bvy < 0 || s.serving) && s.by > TABLE_TOP) {
+
+      const isAI = gameModeRef.current === "1p";
+      const cHitRadius = isAI ? hR * 1.4 : hR * 1.4;
+
+      if (cDist < cHitRadius && s.bz < 100 && (s.bvy < 0 || s.serving) && s.by > TABLE_TOP) {
+        const wasServing = s.serving;
         s.lastHit = "AI"; s.serving = false;
+        s.isServingSequence = wasServing;
+        stRef.current.isServeP1 = false;
+        stRef.current.isServeP2 = false;
+        stRef.current.isManualHitRequested = false;
         s.bvy = (s.speed * 0.82 + Math.abs(s.cvy) * 0.15);
         s.bvx = (cdx / hR) * s.speed * 0.45 + s.cvx * 0.3;
         s.bvz = s.speed * 1.1 + Math.abs(s.cvy) * 0.35; s.bz = 40;
@@ -362,8 +395,21 @@ export default function PingPong() {
   const onPointerEvent = useCallback(e => {
     const r = canvasRef.current?.getBoundingClientRect(); if (!r) return;
     const x = (e.clientX - r.left) * (CW / r.width), y = (e.clientY - r.top) * (CH / r.height);
-    if (e.type === "pointerup" || e.type === "pointercancel" || e.type === "pointerout") delete pointersRef.current[e.pointerId];
-    else pointersRef.current[e.pointerId] = { x, y };
+    if (e.type === "pointerup" || e.type === "pointercancel" || e.type === "pointerout") {
+      delete pointersRef.current[e.pointerId];
+    } else {
+      pointersRef.current[e.pointerId] = { x, y };
+      // On first touch/click, trigger the correct player's serve flag
+      if (e.type === "pointerdown" && stRef.current?.serving) {
+        if (y > NET_Y) {
+          stRef.current.isServeP1 = true;
+          stRef.current.isManualHitRequested = true;
+        } else {
+          stRef.current.isServeP2 = true;
+          stRef.current.isManualHitRequested = true;
+        }
+      }
+    }
   }, []);
   const showOverlay = phase === "idle" || phase === "won" || phase === "lost";
 
@@ -373,12 +419,24 @@ export default function PingPong() {
       style={{
         width: "100vw", height: "100dvh", overflow: "hidden", position: "relative",
         display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia, serif", color: "#fff",
-        background: `#1a0f06 radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.85) 100%), repeating-linear-gradient(90deg, #c19a6b 0px, #c19a6b 40px, #ab865a 40px, #ab865a 42px)`,
-        boxShadow: "inset 0 0 100px rgba(0,0,0,0.9)",
+        background: [
+          `radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(0,0,0,0.85) 100%)`,
+          `radial-gradient(ellipse at 50% 0%, rgba(255,200,100,0.42) 0%, rgba(160,90,20,0.2) 40%, transparent 68%)`,
+          `repeating-linear-gradient(172deg, transparent 0px, transparent 4px, rgba(0,0,0,0.05) 4px, rgba(0,0,0,0.05) 5px)`,
+          `repeating-linear-gradient(8deg,  transparent 0px, transparent 9px, rgba(255,255,255,0.018) 9px, rgba(255,255,255,0.018) 10px)`,
+          `repeating-linear-gradient(90deg, rgba(0,0,0,0.30) 0px, rgba(0,0,0,0.30) 2px, transparent 2px, transparent 70px)`,
+          `repeating-linear-gradient(90deg, #6B3A14 0px, #7D4D22 14px, #9A6130 35px, #7D4D22 56px, #6B3A14 70px, #5C3210 70px, #7A4B20 84px, #8E5A2C 105px, #7A4B20 126px, #5C3210 140px)`,
+        ].join(", "),
       }}>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { background: #1a0f06; }
+        html, body {
+          background: #5a2d0c;
+          overflow: hidden;
+          width: 100%; height: 100%;
+          position: fixed; top: 0; left: 0;
+        }
+        #root { width: 100%; height: 100%; overflow: hidden; }
         @keyframes fade-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         .game-canvas-wrapper { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
         @media (max-width: 600px) {
@@ -399,11 +457,42 @@ export default function PingPong() {
           </div>
         </div>
       )}
+      {phase === "playing" && (
+        <button
+          onClick={() => { runRef.current = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); setPhase("idle"); }}
+          title="Back to Menu"
+          style={{
+            position: "absolute", top: 14, left: 14, zIndex: 30,
+            width: 40, height: 40, borderRadius: "50%",
+            background: "rgba(20,10,5,0.75)", color: "#d4a96a",
+            border: "1.5px solid rgba(212,169,106,0.6)",
+            fontSize: 22, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(4px)",
+            transition: "background 0.2s, border-color 0.2s, transform 0.15s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(212,169,106,0.28)"; e.currentTarget.style.borderColor = "#d4a96a"; e.currentTarget.style.transform = "scale(1.14)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(20,10,5,0.75)"; e.currentTarget.style.borderColor = "rgba(212,169,106,0.6)"; e.currentTarget.style.transform = "scale(1)"; }}
+        >
+          ←
+        </button>
+      )}
       <div className="game-canvas-wrapper">
         <canvas
           ref={canvasRef} width={CW} height={CH}
           style={{ display: "block", width: "min(100vw, 100dvh * (520 / 720))", height: "min(100dvh, 100vw * (720 / 520))", touchAction: "none", cursor: "crosshair", boxShadow: "0 0 100px rgba(0,0,0,0.5)" }}
-          onClick={() => { if (stRef.current?.serving && stRef.current.server === "player") stRef.current.stimer = 0; }}
+          onClick={e => {
+            if (!stRef.current) return;
+            const rect = canvasRef.current.getBoundingClientRect();
+            const clickY = (e.clientY - rect.top) * (CH / rect.height);
+            if (clickY > NET_Y) {
+              stRef.current.isServeP1 = true;       // bottom half → P1 serve
+              stRef.current.isManualHitRequested = true;
+            } else {
+              stRef.current.isServeP2 = true;       // top half → P2 serve
+              stRef.current.isManualHitRequested = true;
+            }
+          }}
         />
         {msg && (
           <div style={{ position: "absolute", left: 0, right: 0, top: "50%", transform: "translateY(-50%)", display: "flex", justifyContent: "center", zIndex: 15 }}>
