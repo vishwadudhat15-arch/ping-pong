@@ -297,7 +297,7 @@ export default function PingPong() {
             s.bz = 40; // AI serves immediately
           }
         }
-      }
+      } 
       let p1p = null, p2p = null;
       Object.values(pointersRef.current).forEach(p => { if (p.y > NET_Y) p1p = p; else p2p = p; });
       if (gameModeRef.current === "1p" && !p1p) p1p = Object.values(pointersRef.current)[0];
