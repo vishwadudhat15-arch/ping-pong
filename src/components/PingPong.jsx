@@ -415,36 +415,9 @@ export default function PingPong() {
 
   return (
     <div
+      className="game-bg"
       onPointerMove={onPointerEvent} onPointerDown={onPointerEvent} onPointerUp={onPointerEvent}
-      style={{
-        width: "100vw", height: "100dvh", overflow: "hidden", position: "relative",
-        display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia, serif", color: "#fff",
-        background: [
-          `radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(0,0,0,0.85) 100%)`,
-          `radial-gradient(ellipse at 50% 0%, rgba(255,200,100,0.42) 0%, rgba(160,90,20,0.2) 40%, transparent 68%)`,
-          `repeating-linear-gradient(172deg, transparent 0px, transparent 4px, rgba(0,0,0,0.05) 4px, rgba(0,0,0,0.05) 5px)`,
-          `repeating-linear-gradient(8deg,  transparent 0px, transparent 9px, rgba(255,255,255,0.018) 9px, rgba(255,255,255,0.018) 10px)`,
-          `repeating-linear-gradient(90deg, rgba(0,0,0,0.30) 0px, rgba(0,0,0,0.30) 2px, transparent 2px, transparent 70px)`,
-          `repeating-linear-gradient(90deg, #6B3A14 0px, #7D4D22 14px, #9A6130 35px, #7D4D22 56px, #6B3A14 70px, #5C3210 70px, #7A4B20 84px, #8E5A2C 105px, #7A4B20 126px, #5C3210 140px)`,
-        ].join(", "),
-      }}>
-      <style>{`
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-          background: #5a2d0c;
-          overflow: hidden;
-          width: 100%; height: 100%;
-          position: fixed; top: 0; left: 0;
-        }
-        #root { width: 100%; height: 100%; overflow: hidden; }
-        @keyframes fade-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-        .game-canvas-wrapper { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1); position: relative; }
-        @media (max-width: 600px) {
-          .mobile-hud { top: 0.5dvh !important; left: 3vw !important; right: 3vw !important; }
-          .mobile-hud-label { font-size: 10px !important; opacity: 0.5; }
-          .mobile-hud-score { font-size: 42px !important; }
-        }
-      `}</style>
+    >
       {phase !== "idle" && !showOverlay && (
         <div className="mobile-hud" style={{ position: "absolute", top: "5dvh", left: "8vw", right: "8vw", display: "flex", justifyContent: "space-between", zIndex: 11 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
