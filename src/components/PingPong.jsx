@@ -297,7 +297,7 @@ export default function PingPong() {
             s.bz = 40; // AI serves immediately
           }
         }
-      } 
+      }
       let p1p = null, p2p = null;
       Object.values(pointersRef.current).forEach(p => { if (p.y > NET_Y) p1p = p; else p2p = p; });
       if (gameModeRef.current === "1p" && !p1p) p1p = Object.values(pointersRef.current)[0];
@@ -306,13 +306,20 @@ export default function PingPong() {
       if (p1p) { s.px += (clamp(p1p.x, TABLE_L + hR, TABLE_R - hR) - s.px) * 0.65; s.py += (clamp(p1p.y, NET_Y + 40, TABLE_BOTTOM - PAD_H) - s.py) * 0.65; }
       s.px = clamp(s.px, TABLE_L + hR, TABLE_R - hR); s.py = clamp(s.py, NET_Y + 40, TABLE_BOTTOM - PAD_H);
       s.pvx = s.px - ppx; s.pvy = s.py - ppy;
+      // Keep ball locked to paddle while waiting to serve so pdx stays 0 when hit
+      if (s.serving && s.server === "player") { s.bx = s.px; s.by = s.py - 20; }
 
       if (gameModeRef.current === "2p") {
         if (p2p) { s.cx += (clamp(p2p.x, TABLE_L + hR, TABLE_R - hR) - s.cx) * 0.65; s.cy += (clamp(p2p.y, TABLE_TOP + PAD_H, NET_Y - 40) - s.cy) * 0.65; }
       } else {
         s.aiTimer--; if (s.aiTimer <= 0) { s.aiErrX = (Math.random() - 0.5) * 18; s.aiTimer = 15; }
         const tr = 0.07 + Math.min(s.speed, 12) * 0.005;
-        s.cx += (clamp(s.bx + s.aiErrX, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.cx) * tr * 4.8;
+        // Only chase ball when it's in AI's half or heading toward AI — drift to center otherwise
+        if (s.by < NET_Y || s.bvy < 0) {
+          s.cx += (clamp(s.bx + s.aiErrX, TABLE_L + hR + 2, TABLE_R - hR - 2) - s.cx) * tr * 4.8;
+        } else {
+          s.cx += (CW / 2 - s.cx) * tr * 2.0; // drift back to center
+        }
         s.cy += (TABLE_TOP + 48 - s.cy) * tr * 3.5;
       }
       s.cx = clamp(s.cx, TABLE_L + hR + 2, TABLE_R - hR - 2); s.cy = clamp(s.cy, TABLE_TOP + 2, NET_Y - 40);
@@ -356,12 +363,23 @@ export default function PingPong() {
         stRef.current.isServeP2 = false;
         stRef.current.isManualHitRequested = false;
 
-        const forwardBoost = wasServing ? 1.45 : 0.85;
-        s.bvy = -(s.speed * forwardBoost + Math.abs(s.pvy) * 0.12);
-        s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.25;
-        s.bvz = s.speed * 0.9 + Math.abs(s.pvy) * 0.2;
-        s.bz = 40;
-        s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.1);
+        // Serve: gentler speed + lower arc so ball lands inside table
+        const forwardBoost = wasServing ? 1.05 : 0.85;
+        s.bvy = -(s.speed * forwardBoost + Math.abs(s.pvy) * (wasServing ? 0.05 : 0.12));
+        if (wasServing) {
+          // Serve bvx: no position offset, only light paddle swing, tightly clamped
+          s.bvx = clamp(s.pvx * 0.15, -s.speed * 0.2, s.speed * 0.2);
+          // Lower arc so ball bounces on player's side then reaches AI's side without overshooting
+          s.bvz = s.speed * 0.62;
+          s.bz = 28;
+          // No speed increase on serve
+        } else {
+          s.bvx = (pdx / hR) * s.speed * 0.45 + s.pvx * 0.25;
+          s.bvz = s.speed * 0.9 + Math.abs(s.pvy) * 0.2;
+          s.bz = 40;
+          s.speed = Math.min(12, s.speed + 0.1);
+        }
+        s.pBounced = s.cBounced = false;
         setRally(++s.rallyHits); ping(820);
       }
       const cdx = s.bx - s.cx, cdy = visualBy - s.cy, cDist = Math.hypot(cdx, cdy);
@@ -369,16 +387,19 @@ export default function PingPong() {
       const isAI = gameModeRef.current === "1p";
       const cHitRadius = isAI ? hR * 1.4 : hR * 1.4;
 
-      if (cDist < cHitRadius && s.bz < 100 && (s.bvy < 0 || s.serving) && s.by > TABLE_TOP) {
+      // AI can only hit ball when it's in AI's half of the table (above the net)
+      if (cDist < cHitRadius && s.bz < 100 && (s.bvy < 0 || s.serving) && s.by > TABLE_TOP && s.by < NET_Y + 20) {
         const wasServing = s.serving;
         s.lastHit = "AI"; s.serving = false;
         s.isServingSequence = wasServing;
         stRef.current.isServeP1 = false;
         stRef.current.isServeP2 = false;
         stRef.current.isManualHitRequested = false;
-        s.bvy = (s.speed * 0.82 + Math.abs(s.cvy) * 0.15);
+        // Enough forward speed + arc to always clear the net
+        s.bvy = (s.speed * 1.0 + Math.abs(s.cvy) * 0.15);
         s.bvx = (cdx / hR) * s.speed * 0.45 + s.cvx * 0.3;
-        s.bvz = s.speed * 1.1 + Math.abs(s.cvy) * 0.35; s.bz = 40;
+        s.bvz = Math.max(s.speed * 1.4, s.speed * 1.1 + Math.abs(s.cvy) * 0.35);
+        s.bz = 40;
         s.pBounced = s.cBounced = false; s.speed = Math.min(12, s.speed + 0.15);
         setRally(++s.rallyHits); ping(680);
       }
@@ -392,6 +413,35 @@ export default function PingPong() {
   }, [draw, ping, pong, scoreSound, showMsg]);
 
   useEffect(() => { if (phase !== "playing") { runRef.current = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); } }, [phase]);
+
+  // Clear canvas when returning to menu so paddles don't bleed through overlay
+  useEffect(() => {
+    if (phase === "idle") {
+      const c = canvasRef.current;
+      if (!c) return;
+      if (!ctxRef.current) ctxRef.current = c.getContext("2d");
+      drawTable(ctxRef.current);
+    }
+  }, [phase]);
+
+  // Intercept browser back button — return to menu instead of leaving the page
+  useEffect(() => {
+    if (phase === "playing") {
+      window.history.pushState({ pingpong: true }, "");
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (phase === "playing") {
+        runRef.current = false;
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        setPhase("idle");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [phase]);
   const onPointerEvent = useCallback(e => {
     const r = canvasRef.current?.getBoundingClientRect(); if (!r) return;
     const x = (e.clientX - r.left) * (CW / r.width), y = (e.clientY - r.top) * (CH / r.height);
@@ -473,7 +523,7 @@ export default function PingPong() {
           </div>
         )}
         {showOverlay && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, zIndex: 20 }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.82)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, zIndex: 20 }}>
             {phase === "idle" && (
               <>
                 <h1 style={{ fontSize: 10, color: "#a0724a", letterSpacing: 6, margin: 0 }}>TABLE TENNIS</h1>
